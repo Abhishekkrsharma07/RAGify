@@ -7,3 +7,4 @@ def get_embeddings():
     )
 
     return embeddings
+

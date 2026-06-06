@@ -1,63 +1,178 @@
-from dotenv import load_dotenv
-load_dotenv()
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import os
 
+from src.embeddings import get_embeddings
 from src.loader import load_pdf
 from src.splitter import split_documents
-from src.embeddings import get_embeddings
 from src.vector_store import create_vector_store
 from src.rag_chain import create_rag_chain
 
-# Load PDF
-documents = load_pdf("data/ml_book.pdf")
+app = Flask(__name__)
 
-# Split text
-chunks = split_documents(documents)
+CORS(
+    app,
+    resources={
+        r"/*": {
+            "origins": "*"
+        }
+    }
+)
 
-# Create embeddings
-embeddings = get_embeddings()
+UPLOAD_FOLDER = "uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Create vector store
-vector_store = create_vector_store(chunks, embeddings)
+vector_store = None
+retriever = None
+llm = None
 
-# Create retriever and LLM
-retriever, llm = create_rag_chain(vector_store)
 
-print("RAG Chatbot Ready!")
-print("Type 'exit' to quit\n")
+@app.route("/")
+def home():
+    return jsonify({
+        "message": "Backend Running"
+    })
 
-while True:
 
-    query = input("Ask Question: ")
+@app.route("/upload", methods=["POST"])
+def upload_pdf():
 
-    if query.lower() == "exit":
-        break
+    global vector_store
+    global retriever
+    global llm
 
-    # Retrieve relevant docs
-    docs = retriever.invoke(query)
-
-    # Combine retrieved text
-    context = "\n".join([doc.page_content for doc in docs])
-
-    # Create prompt
-    prompt = f"""
-    Answer the question using the context below.
-
-    Context:
-    {context}
-
-    Question:
-    {query}
-    """
-
-    # Gemini response
     try:
-        response = llm.invoke(prompt)
 
-        print("\nAnswer:")
-        print(response.content)
-        print("\n")
+        if "file" not in request.files:
+            return jsonify({
+                "error": "No file uploaded"
+            }), 400
+
+        file = request.files["file"]
+
+        file_path = os.path.join(
+            UPLOAD_FOLDER,
+            file.filename
+        )
+
+        file.save(file_path)
+
+        documents = load_pdf(file_path)
+
+        print(
+            f"Pages Loaded: {len(documents)}"
+        )
+
+        chunks = split_documents(
+            documents
+        )
+
+        print(
+            f"Chunks Created: {len(chunks)}"
+        )
+
+        embeddings = get_embeddings()
+
+        vector_store = create_vector_store(
+            chunks,
+            embeddings
+        )
+
+        retriever, llm = create_rag_chain(
+            vector_store
+        )
+
+        return jsonify({
+            "message":
+            "PDF uploaded successfully",
+            "chunks":
+            len(chunks)
+        })
 
     except Exception as e:
-        print("\nError:")
-        print(e)
-        print("\n")
+
+        print("UPLOAD ERROR:", str(e))
+
+        return jsonify({
+            "error": str(e)
+        }), 500
+
+
+@app.route("/ask", methods=["POST"])
+def ask_question():
+
+    global retriever
+    global llm
+
+    try:
+
+        if retriever is None:
+
+            return jsonify({
+                "answer":
+                "Please upload a PDF first."
+            })
+
+        data = request.get_json()
+
+        question = data["question"]
+
+        docs = retriever.invoke(
+            question
+        )
+
+        context = "\n\n".join(
+            [
+                doc.page_content
+                for doc in docs
+            ]
+        )
+
+        print("\nRetrieved Context:\n")
+        print(context[:1000])
+
+        prompt = f"""
+You are a PDF assistant.
+
+Answer ONLY from the context.
+
+If answer is not found say:
+
+'I could not find this information in the uploaded PDF.'
+
+Context:
+{context}
+
+Question:
+{question}
+"""
+
+        response = llm.invoke(
+            prompt
+        )
+
+        return jsonify({
+            "answer":
+            response.content
+        })
+
+    except Exception as e:
+
+        print(
+            "ASK ERROR:",
+            str(e)
+        )
+
+        return jsonify({
+            "error":
+            str(e)
+        }), 500
+
+
+if __name__ == "__main__":
+
+    app.run(
+        host="0.0.0.0",
+        port=5000,
+        debug=True
+    )
