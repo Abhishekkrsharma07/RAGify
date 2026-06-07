@@ -1,5 +1,5 @@
-import UploadDocument from "../components/UploadDocument";
-import ChatBox from "../components/ChatBox";
+import UploadDocument from "../components/UploadDocument.jsx";
+import ChatBox from "../components/ChatBox.jsx";
 import { motion } from "framer-motion";
 
 function Home() {

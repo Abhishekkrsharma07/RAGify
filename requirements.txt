@@ -1,10 +1,18 @@
-flask
-flask-cors
 langchain
 langchain-community
 langchain-google-genai
-langchain-text-splitters
-sentence-transformers
 faiss-cpu
 pypdf
 python-dotenv
+langchain-google-genai
+python-dotenv
+pip install flask
+pip install flask-cors
+pip install python-dotenv
+pip install langchain
+pip install langchain-community
+pip install langchain-google-genai
+pip install langchain-text-splitters
+pip install sentence-transformers
+pip install faiss-cpu
+pip install pypdf
