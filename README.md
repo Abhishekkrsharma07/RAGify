@@ -2,7 +2,7 @@
 
 This repository contains a full-stack Retrieval-Augmented Generation (RAG) application called **RAGify**. The app allows users to upload PDF documents and ask natural language questions based on the content of those documents.
 
-## How RAGify is Useful
+## How RAGify is Useful  
 
 RAGify solves a very common problem: **extracting specific information from long documents without reading them entirely.**
 
